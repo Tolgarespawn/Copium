@@ -1,0 +1,66 @@
+import time
+import pyperclip
+from pynput import keyboard
+from tkinter import Tk, Entry, Label, Checkbutton, BooleanVar, OptionMenu, StringVar
+from tkinter import ttk
+import sv_ttk
+
+def type_text():
+    from pynput.keyboard import Controller
+    keyboard_controller = Controller()
+    text = entry.get()
+    if text:
+        try:
+            write_speed = int(write_speed_var.get()) / 1000
+        except ValueError:
+            write_speed = 0.1
+        for char in text:
+            keyboard_controller.type(char)
+            time.sleep(write_speed)
+
+def paste_text():
+    text = pyperclip.paste()
+    entry.delete(0, "end")
+    entry.insert(0, text)
+
+def toggle_password():
+    if var.get():
+        entry.config(show="●")
+    else:
+        entry.config(show="")
+
+def on_press(key):
+    if key == keyboard.Key.f2:
+        type_text()
+
+window = Tk()
+window.geometry("300x180")
+window.title("Copier")
+sv_ttk.set_theme("dark")
+
+label = ttk.Label(window, text="Kopyalanan Metin", font=("Arial", 10))
+label.pack(pady=5)
+
+entry = ttk.Entry(window, width=30, font=("Arial", 10))
+entry.pack(pady=5)
+
+var = BooleanVar(value=True)
+checkbox = ttk.Checkbutton(window, text="Şifreyi Gizle", variable=var, command=toggle_password)
+checkbox.pack(pady=5)
+
+write_speed_var = StringVar(window)
+write_speed_var.set("100")
+speed_options = ["100", "200", "300", "400", "500", "600", "700", "800", "900", "1000"]
+speed_dropdown = ttk.OptionMenu(window, write_speed_var, *speed_options)
+speed_dropdown.pack(pady=5)
+
+toggle_password()
+
+hotkey = keyboard.GlobalHotKeys({
+    '<ctrl>+c': paste_text
+})
+
+with hotkey:
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+    window.mainloop()
