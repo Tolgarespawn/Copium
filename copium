@@ -18,16 +18,6 @@ def type_text():
             keyboard_controller.type(char)
             time.sleep(write_speed)
 
-def type_admin_text():
-    from pynput.keyboard import Controller
-    keyboard_controller = Controller()
-    text = admin_entry.get()
-    if text:
-        for char in text:
-            keyboard_controller.type(char)
-            time.sleep(0.1)
-
-
 def paste_text():
     text = pyperclip.paste()
     entry.delete(0, "end")
@@ -42,19 +32,8 @@ def toggle_password():
 def toggle_always_on_top():
     window.attributes('-topmost', always_on_top_var.get())
 
-admin_text_typed = False
-
-def on_combination():
-    global admin_text_typed
-    if not admin_text_typed:
-        type_admin_text()
-        admin_text_typed = True
-
-combination = {keyboard.Key.shift, keyboard.Key.f2}
-current_keys = set()
-
 window = Tk()
-window.geometry("300x260")
+window.geometry("300x220")
 window.title("Copier")
 sv_ttk.set_theme("dark")
 
@@ -64,18 +43,12 @@ label.pack(pady=5)
 entry = ttk.Entry(window, width=30, font=("Arial", 10))
 entry.pack(pady=5)
 
-admin_label = ttk.Label(window, text="Yönetici Metni", font=("Arial", 10))
-admin_label.pack(pady=5)
-
-admin_entry = ttk.Entry(window, width=30, font=("Arial", 10))
-admin_entry.insert(0, ".\\administrator")
-admin_entry.pack(pady=5)
-
 var = BooleanVar(value=True)
 checkbox = ttk.Checkbutton(window, text="Şifreyi Gizle", variable=var, command=toggle_password)
 checkbox.pack(pady=5)
 
-always_on_top_var = BooleanVar(value=False)
+# Her zaman üstte seçeneği varsayılan olarak açık
+always_on_top_var = BooleanVar(value=True)  # Varsayılan olarak True
 always_on_top_checkbox = ttk.Checkbutton(window, text="Her Zaman Üstte", variable=always_on_top_var, command=toggle_always_on_top)
 always_on_top_checkbox.pack(pady=5)
 
@@ -87,25 +60,26 @@ speed_dropdown.pack(pady=5)
 
 toggle_password()
 
+def on_press(key):
+    if key == keyboard.Key.f2:
+        type_text()
+
+def on_release(key):
+    if key == keyboard.Key.shift:
+        current_keys.discard(key)
+
+current_keys = set()
+
+listener = keyboard.Listener(
+    on_press=on_press,
+    on_release=on_release
+)
+listener.start()
+
 hotkey = keyboard.GlobalHotKeys({
     '<ctrl>+c': paste_text
 })
 
-with hotkey:
-    def on_press(key):
-        global admin_text_typed
-        current_keys.add(key)
-        if current_keys == combination and not admin_text_typed:
-            on_combination()
+hotkey.start()
 
-    def on_release(key):
-        global admin_text_typed
-        current_keys.discard(key)
-        admin_text_typed = False
-
-    listener = keyboard.Listener(
-        on_press=on_press,
-        on_release=on_release
-    )
-    listener.start()
-    window.mainloop()
+window.mainloop()
