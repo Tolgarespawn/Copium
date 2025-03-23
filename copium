@@ -60,6 +60,9 @@ speed_dropdown.pack(pady=5)
 
 toggle_password()
 
+# Başlangıçta her zaman üstte olma özelliğini aktif etmek için
+toggle_always_on_top()
+
 def on_press(key):
     if key == keyboard.Key.f2:
         type_text()
