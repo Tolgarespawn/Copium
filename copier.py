@@ -1,0 +1,211 @@
+import time
+import pyperclip
+import pyautogui
+from pynput import keyboard
+from screeninfo import get_monitors
+from tkinter import Tk, Entry, BooleanVar, StringVar, Frame, ttk, Button
+import sv_ttk
+
+# GLOBALLER
+hide_timer_id = None
+settings_visible = False
+last_clipboard = ""
+auto_clipboard_enabled = True
+
+# YAZIYI YAZMA
+def type_text():
+    from pynput.keyboard import Controller
+    keyboard_controller = Controller()
+    text = entry.get()
+    if text:
+        try:
+            write_speed = int(write_speed_var.get()) / 1000
+        except ValueError:
+            write_speed = 0.1
+        for char in text:
+            keyboard_controller.type(char)
+            time.sleep(write_speed)
+
+# ELLE YAPIŞTIR
+def paste_text():
+    text = pyperclip.paste()
+    entry.delete(0, "end")
+    entry.insert(0, text)
+
+# ŞİFREYİ GİZLE
+def toggle_password():
+    entry.config(show="●" if password_var.get() else "")
+
+# HER ZAMAN ÜSTTE
+def toggle_always_on_top():
+    window.attributes('-topmost', always_on_top_var.get())
+
+# MONİTÖR SEÇ
+def get_selected_monitor():
+    monitors = get_monitors()
+    try:
+        return monitors[int(monitor_choice_var.get())]
+    except (IndexError, ValueError):
+        return monitors[0]
+
+# MOUSE KONTROLÜ
+def check_mouse_position():
+    x, y = pyautogui.position()
+    monitor = get_selected_monitor()
+    if x >= monitor.x + monitor.width - 2:
+        show_panel(monitor)
+    window.after(200, check_mouse_position)
+
+# PANEL GÖSTER
+def show_panel(monitor):
+    global hide_timer_id
+    panel_width = 300
+    panel_height = 350
+
+    x = monitor.x + monitor.width - panel_width
+    y = monitor.y + (monitor.height - panel_height) // 2
+
+    window.deiconify()
+    window.geometry(f"{panel_width}x{panel_height}+{x}+{y}")
+
+    if hide_timer_id:
+        window.after_cancel(hide_timer_id)
+
+    try:
+        if visible_duration_var.get() == "sınırsız":
+            # Sınırsız süre için, paneli gizlememek amacıyla timer'ı sıfırlıyoruz.
+            return
+        duration = max(2, int(visible_duration_var.get())) * 1000
+    except ValueError:
+        duration = 3000
+    hide_timer_id = window.after(duration, hide_panel)
+
+# PANELİ GİZLE
+def hide_panel():
+    monitor = get_selected_monitor()
+    x = monitor.x + monitor.width + 10
+    y = monitor.y + (monitor.height - 300) // 2
+    window.geometry(f"+{x}+{y}")
+    window.withdraw()
+
+# AYARLARI GÖSTER/GİZLE
+def toggle_settings():
+    global settings_visible
+    settings_visible = not settings_visible
+    if settings_visible:
+        main_frame.pack_forget()
+        settings_frame.pack(fill="both", expand=True)
+    else:
+        settings_frame.pack_forget()
+        main_frame.pack(fill="both", expand=True)
+
+# ÇARK BUTONU
+def create_gear_button(parent):
+    btn = Button(parent, text="⚙️", font=("Arial", 12), width=3, command=toggle_settings)
+    btn.place(x=265, y=5)
+    return btn
+
+# CLIPBOARD TAKİBİ
+def monitor_clipboard():
+    global last_clipboard
+    if auto_clipboard_var.get():
+        try:
+            text = pyperclip.paste()
+            if text != last_clipboard:
+                last_clipboard = text
+                entry.delete(0, "end")
+                entry.insert(0, text)
+        except:
+            pass
+    window.after(1000, monitor_clipboard)
+
+# GİZLEMEYİ KAPATAN BUTON
+def hide_settings():
+    global settings_visible
+    settings_visible = False
+    settings_frame.pack_forget()
+    main_frame.pack(fill="both", expand=True)
+
+# Sınırsız süreyi seçmek için buton
+def set_infinite_duration():
+    visible_duration_var.set("sınırsız")
+    show_panel(get_selected_monitor())  # Paneli hemen göster
+
+# UYGULAMA BAŞLANGICI
+window = Tk()
+window.title("Copier")
+window.geometry("300x300")
+sv_ttk.set_theme("dark")
+window.resizable(False, False)
+
+# DEĞİŞKENLER
+password_var = BooleanVar(value=True)
+always_on_top_var = BooleanVar(value=True)
+auto_clipboard_var = BooleanVar(value=True)
+write_speed_var = StringVar(value="100")
+visible_duration_var = StringVar(value="3")
+monitor_choice_var = StringVar(value="0")
+
+# ANA EKRAN
+main_frame = Frame(window, width=300, height=300)
+main_frame.pack_propagate(False)
+main_frame.pack(fill="both", expand=True)
+create_gear_button(main_frame)
+
+ttk.Label(main_frame, text="Kopyalanan Metin", font=("Arial", 10)).pack(pady=20)
+entry = ttk.Entry(main_frame, width=30, font=("Arial", 10))
+entry.pack(pady=5)
+
+ttk.Checkbutton(main_frame, text="Şifreyi Gizle", variable=password_var, command=toggle_password).pack(pady=5)
+ttk.Checkbutton(main_frame, text="Her Zaman Üstte", variable=always_on_top_var, command=toggle_always_on_top).pack(pady=5)
+
+# AYARLAR EKRANI
+settings_frame = Frame(window, width=300, height=300)
+settings_frame.pack_propagate(False)
+
+create_gear_button(settings_frame)
+
+ttk.Label(settings_frame, text="Yazma Hızı (ms)").pack(pady=15)
+ttk.OptionMenu(settings_frame, write_speed_var, write_speed_var.get(), *[str(i) for i in range(100, 1100, 100)]).pack(pady=5)
+
+ttk.Label(settings_frame, text="Görünme Süresi (sn)").pack(pady=15)
+ttk.OptionMenu(settings_frame, visible_duration_var, visible_duration_var.get(), *[str(i) for i in range(2, 11)]).pack(pady=5)
+
+ttk.Label(settings_frame, text="Ekran Seçimi").pack(pady=15)
+monitor_options = [str(i) for i in range(len(get_monitors()))]
+ttk.OptionMenu(settings_frame, monitor_choice_var, monitor_choice_var.get(), *monitor_options).pack(pady=5)
+
+ttk.Checkbutton(settings_frame, text="Otomatik Clipboard Takibi", variable=auto_clipboard_var).pack(pady=15)
+
+# "Sınırsız Görünme Süresi" Butonu
+infinite_button = Button(settings_frame, text="Sınırsız Süre", command=set_infinite_duration)
+infinite_button.pack(pady=10)
+
+# GİZLEMEYİ KAPATAN BUTON
+hide_button = Button(settings_frame, text="Ayarları Kapat", command=hide_settings)
+hide_button.pack(pady=10)
+
+# BAŞLANGIÇ AYARLARI
+toggle_password()
+toggle_always_on_top()
+window.withdraw()
+
+# OTOMATİK KONTROLLER
+window.after(500, check_mouse_position)
+window.after(1000, monitor_clipboard)
+
+# KLAVYE KISAYOLLARI
+def on_press(key):
+    if key == keyboard.Key.f2:
+        type_text()
+
+def on_release(key):
+    if key == keyboard.Key.shift:
+        current_keys.discard(key)
+
+current_keys = set()
+keyboard.Listener(on_press=on_press, on_release=on_release).start()
+keyboard.GlobalHotKeys({'<ctrl>+c': paste_text}).start()
+
+# BAŞLAT
+window.mainloop()
